@@ -165,6 +165,8 @@ final class Newspack_Popups_Model {
 					}
 					update_post_meta( $id, $key, $value );
 					break;
+				case 'trigger_type':
+				case 'trigger_scroll_progress':
 				case 'utm_suppression':
 				case 'selected_segment_id':
 					update_post_meta( $id, $key, esc_attr( $value ) );
@@ -426,6 +428,16 @@ final class Newspack_Popups_Model {
 	 */
 	public static function is_inline( $popup ) {
 		return 'inline' === $popup['options']['placement'];
+	}
+
+	/**
+	 * Is it an overlay time-triggered popup or not.
+	 *
+	 * @param object $popup The popup object.
+	 * @return boolean True if it is an overlay time-triggered popup.
+	 */
+	public static function is_timed_overlay_popup( $popup ) {
+		return 'inline' !== $popup['options']['placement'] && 'time' === $popup['options']['trigger_type'];
 	}
 
 	/**

@@ -30,9 +30,10 @@ final class Newspack_Popups_Inserter {
 	/**
 	 * Retrieve the appropriate popups for the current post.
 	 *
+	 * @param bool $skip_timed_overlay_popups Skip time-triggered overlay popups.
 	 * @return array Popup objects.
 	 */
-	public static function popups_for_post() {
+	public static function popups_for_post( $skip_timed_overlay_popups = false ) {
 		// Inject campaigns only in posts, pages, and CPTs that explicitly opt in.
 		if ( ! in_array(
 			get_post_type(),
@@ -114,7 +115,16 @@ final class Newspack_Popups_Inserter {
 		);
 
 		if ( ! empty( $popups_to_display ) ) {
-			return $popups_to_display;
+			if ( $skip_timed_overlay_popups ) {
+				return array_filter(
+					$popups_to_display,
+					function ( $popup ) {
+						return ! Newspack_Popups_Model::is_timed_overlay_popup( $popup );
+					}
+				);
+			} else {
+				return $popups_to_display;
+			}
 		}
 
 		return [];
@@ -129,6 +139,7 @@ final class Newspack_Popups_Inserter {
 		add_action( 'after_header', [ $this, 'insert_popups_after_header' ] ); // This is a Newspack theme hook. When used with other themes, popups won't be inserted on archive pages.
 		add_action( 'wp_head', [ $this, 'insert_popups_amp_access' ] );
 		add_action( 'wp_head', [ $this, 'register_amp_scripts' ] );
+		add_action( 'before_header', [ $this, 'inject_timed_overlay_popups' ] );
 
 		add_filter(
 			'newspack_newsletters_assess_has_disabled_popups',
@@ -214,7 +225,7 @@ final class Newspack_Popups_Inserter {
 			return $content;
 		}
 
-		$popups = self::popups_for_post();
+		$popups = self::popups_for_post( true );
 
 		if ( empty( $popups ) ) {
 			return $content;
@@ -292,10 +303,25 @@ final class Newspack_Popups_Inserter {
 			return;
 		}
 
-		$popups = self::popups_for_post();
+		$popups = self::popups_for_post( true );
 
 		if ( ! empty( $popups ) ) {
 			foreach ( $popups as $popup ) {
+				echo Newspack_Popups_Model::generate_popup( $popup ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			}
+			self::enqueue_popup_assets();
+		}
+	}
+
+	/**
+	 * Insert time-triggered overlay popups above the header.
+	 * This way they will be visible before scrolling below the fold.
+	 */
+	public static function inject_timed_overlay_popups() {
+		$timed_overlay_popups = array_filter( self::popups_for_post(), [ 'Newspack_Popups_Model', 'is_timed_overlay_popup' ] );
+
+		if ( ! empty( $timed_overlay_popups ) ) {
+			foreach ( $timed_overlay_popups as $popup ) {
 				echo Newspack_Popups_Model::generate_popup( $popup ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			}
 			self::enqueue_popup_assets();
